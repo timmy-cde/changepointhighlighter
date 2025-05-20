@@ -1,0 +1,76 @@
+{
+  "name": "changepointhighlighter",
+  "displayName": "ChangepointHighlighter",
+  "description": "This highlights the user defined line of codes in the software.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "publisher": "timmy",
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "changepointhighlighter.loadChangepoints",
+        "title": "Load Changepoints from Excel"
+      },
+      {
+        "command": "changepointhighlighter.highlight",
+        "title": "Highlight_2"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorTextFocus",
+          "command": "changepointhighlighter.loadChangepoints",
+          "group": "Highlighter"
+        },
+        {
+          "when": "editorTextFocus",
+          "command": "changepointhighlighter.highlight",
+          "group": "Highlighter"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Lines Highlight",
+      "properties": {
+        "linesHighlight.highlightColor": {
+          "type": "string",
+          "default": "rgba(197, 227, 28, 0.25)",
+          "description": "The color and opacity of the highlight",
+          "order": 0
+        },
+
+        "linesHighlight.scrollbarHighlightOpacity": {
+          "type": "number",
+          "default": 0.3,
+          "description": "The opacity of the highlight in the scroll bar on the right",
+          "order": 1
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.100.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
