@@ -1,10 +1,13 @@
 // @ts-nocheck
 const vscode = require("vscode");
 const XLSX = require("xlsx");
-const path = require("path")
+const path = require("path");
+const fs = require("fs");
+const savePath = "%APPDATA%CodeUser";
 let settings;
 let decorationType;
-let changepointsDict = new Map();
+let changepointsMap = new Map();
+let HighlightMap = new Map();
 let initialized = true;
 
 /**
@@ -15,15 +18,21 @@ function activate(context) {
     'Congratulations, your extension "changepointhighlighter" is now active!'
   );
 
-  let disposable = vscode.commands.registerCommand("changepointhighlighter.loadChangepoints", loadChangepointsfromExcel);
+  let disposable = vscode.commands.registerCommand(
+    "changepointhighlighter.loadChangepoints",
+    loadChangepointsfromExcel
+  );
   context.subscriptions.push(disposable);
 
-  disposable = vscode.commands.registerCommand("changepointhighlighter.highlight", addHighlights);
+  disposable = vscode.commands.registerCommand(
+    "changepointhighlighter.highlight",
+    addHighlights
+  );
   context.subscriptions.push(disposable);
 
-  vscode.window.onDidChangeActiveTextEditor(editor => {
-    if(editor) addHighlights(editor);
-  })
+  vscode.window.onDidChangeActiveTextEditor((editor) => {
+    if (editor) addHighlights(editor);
+  });
 }
 
 function deactivate() {}
@@ -44,7 +53,7 @@ function loadChangepointsfromExcel() {
       workbook.SheetNames.forEach((sheetName) => {
         const sheet = workbook.Sheets[sheetName];
         const isVisible = !workbook.Sheets[sheetName].Hidden;
-        
+
         if (isVisible) {
           const range = XLSX.utils.decode_range(sheet["!ref"]);
 
@@ -52,56 +61,48 @@ function loadChangepointsfromExcel() {
             const cellD = sheet[XLSX.utils.encode_cell({ r: row, c: 3 })];
             const cellC = sheet[XLSX.utils.encode_cell({ r: row, c: 2 })];
 
-            //   TO DO: use relative file path instead of filename
-            //   if cell color is blue
-            // if (cellD.s?.fgColor?.rgb === "0000FF") {
-            //   targetFilePath = cellD.v;
-            //   // clean file path here
-            // }
-
             //   if cell color is changepoint
-            if (cellC.v != "" && cellD.s?.fgColor?.rgb === 'EFCB05' && cellD.v != null) {
+            if (
+              cellC.v != "" &&
+              cellD.s?.fgColor?.rgb === "EFCB05" &&
+              cellD.v != null
+            ) {
               const lineNumber = cellC.v - 1;
               const textLength = cellD.v.toString().length;
 
-              const existingLines = changepointsDict.get(sheetName) || [];
-              existingLines.push(new vscode.Range(lineNumber, 0, lineNumber, textLength));
-              changepointsDict.set(sheetName, existingLines); 
+              const existingLines = changepointsMap.get(sheetName) || [];
+              existingLines.push(
+                new vscode.Range(lineNumber, 0, lineNumber, textLength)
+              );
+              changepointsMap.set(sheetName, existingLines);
             }
           }
         }
       });
-      vscode.window.showInformationMessage("Finished loading changepoints.")
+      vscode.window.showInformationMessage("Finished loading changepoints.");
     } else {
-      vscode.window.showErrorMessage("No file selected.")
+      vscode.window.showErrorMessage("No file selected.");
     }
   });
-
 }
 
 function addHighlights() {
-  if (changepointsDict.size === 0) {
+  if (changepointsMap.size === 0) {
     vscode.window.showErrorMessage("Load changepoints first!");
     return;
   }
-  
+
   updateDecorationType();
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
 
   // Get the  highlights from changepoint map
-  const fileUri = editor.document.uri
-  const docUriString = fileUri.toString()
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(fileUri)
-  if (!workspaceFolder) return;
-  
-  const relativePath = vscode.workspace.asRelativePath(fileUri);
-  const fileName = path.basename(docUriString)
+  const fileUri = editor.document.uri;
+  const docUriString = fileUri.toString();
+  const fileName = path.basename(docUriString);
 
-  const linesToHighlight = changepointsDict.get(fileName);
+  const linesToHighlight = changepointsMap.get(fileName);
   if (!linesToHighlight) return;
-
-  console.log(`Relative Path: ${relativePath}`)
 
   editor.setDecorations(decorationType, linesToHighlight);
 }
@@ -109,11 +110,13 @@ function addHighlights() {
 function getSettings() {
   const config = vscode.workspace.getConfiguration();
 
-  const color = config.get('linesHighlight.highlightColor') || "rgba(197, 227, 28, 0.25)";
-  const scrollbarOpacity = config.get('linesHighlight.scrollbarHighlightOpacity') || 0.3;
+  const color =
+    config.get("linesHighlight.highlightColor") || "rgba(197, 227, 28, 0.25)";
+  const scrollbarOpacity =
+    config.get("linesHighlight.scrollbarHighlightOpacity") || 0.3;
 
   if (!color || !scrollbarOpacity) {
-    throw new Error('Lines Highlight: Invalid settings');
+    throw new Error("Lines Highlight: Invalid settings");
   }
 
   const settings = {
@@ -131,7 +134,7 @@ function updateDecorationType() {
   const previousSettings = settings || {};
   settings = getSettings();
 
-  const settingsChanged = Object.keys(settings).some(key => {
+  const settingsChanged = Object.keys(settings).some((key) => {
     return previousSettings[key] !== settings[key];
   });
 
@@ -147,6 +150,10 @@ function updateDecorationType() {
   });
   initialized = false;
 }
+
+function getHighlightFile() {}
+
+function saveHighlightsToJson() {}
 
 module.exports = {
   activate,
