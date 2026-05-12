@@ -2,7 +2,7 @@
   "name": "changepointhighlighter",
   "displayName": "ChangepointHighlighter",
   "description": "This highlights the user defined line of codes in the software.",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.100.0"
   },
@@ -10,7 +10,9 @@
     "Other"
   ],
   "publisher": "timmy",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
@@ -20,7 +22,7 @@
       },
       {
         "command": "changepointhighlighter.highlight",
-        "title": "Highlight_2"
+        "title": "Highlight"
       }
     ],
     "menus": {
@@ -34,6 +36,15 @@
           "when": "editorTextFocus",
           "command": "changepointhighlighter.highlight",
           "group": "Highlighter"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "changepointTargets",
+          "name": "Changepoint Targets",
+          "icon": "?"
         }
       ]
     },

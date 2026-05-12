@@ -6,4 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+2025-05-12
 - Initial release
+
+2026-05-07
+- added tree view for target files
+- added persistence for the target files and highlights
