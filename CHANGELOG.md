@@ -12,3 +12,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 2026-05-07
 - added tree view for target files
 - added persistence for the target files and highlights
+
+2026-05-14
+- added multiple nodes in tree view (unsorted and sorted)

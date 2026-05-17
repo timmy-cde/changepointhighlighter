@@ -3,6 +3,7 @@ const vscode = require("vscode");
 const XLSX = require("xlsx");
 const path = require("path");
 const fs = require("fs");
+const TreeProvider = require("./targetFilesView.js");
 
 let decorationType;
 let settings;
@@ -13,60 +14,6 @@ let changepointsDict = new Map();
 
 // Tree view provider
 let targetFilesProvider;
-
-// „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-// Tree View implementation
-// „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-class RootNode {
-  constructor(label) {
-    this.label = label;
-    this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-  }
-}
-
-class TargetFilesProvider {
-  constructor() {
-    this._onDidChangeTreeData = new vscode.EventEmitter();
-    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
-
-    this.root = new RootNode("Target Files");
-    this.files = [];
-  }
-
-  refresh() {
-    this._onDidChangeTreeData.fire();
-  }
-
-  setFiles(files) {
-    this.files = files;
-    this.root = new RootNode(`Target Files (${files.length})`); // reset collapse
-    this.refresh();
-  }
-
-  getTreeItem(element) {
-    if (element instanceof RootNode) return element;
-
-    const item = new vscode.TreeItem(
-      element.label,
-      vscode.TreeItemCollapsibleState.None,
-    );
-
-    item.resourceUri = element.uri;
-    item.command = {
-      command: "vscode.open",
-      title: "Open File",
-      arguments: [element.uri],
-    };
-
-    return item;
-  }
-
-  getChildren(element) {
-    if (!element) return [this.root];
-    if (element === this.root) return this.files;
-    return [];
-  }
-}
 
 // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
 // Workspace helpers
@@ -94,12 +41,7 @@ function activate(context) {
     'Extension "changepointhighlighter" activated',
   );
 
-  targetFilesProvider = new TargetFilesProvider();
-
-  vscode.window.registerTreeDataProvider(
-    "changepointTargets",
-    targetFilesProvider,
-  );
+  targetFilesProvider = new TreeProvider.TargetFilesProvider();
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -200,14 +142,9 @@ function loadChangepointsfromExcel() {
         }
       });
 
-      const sortedTargets = [...new Set(persistedTargets)].sort((a, b) => {
-        const fileA = a.split("\\").pop();
-        const fileB = b.split("\\").pop();
+      const uniqueTargets = [...new Set(persistedTargets)];
 
-        return fileA.localeCompare(fileB, "en", { sensitivity: "base" });
-      });
-
-      sortedTargets.forEach((rel) => {
+      uniqueTargets.forEach((rel) => {
         const abs = path.join(workspaceRoot, rel);
         treeFiles.push({
           label: path.basename(rel),
@@ -215,19 +152,59 @@ function loadChangepointsfromExcel() {
         });
       });
 
-      targetFilesProvider.setFiles(treeFiles);
+      setTargets(treeFiles, workspaceRoot, false);
 
       vscode.window.showInformationMessage(
         "Changepoints loaded and persisted.",
       );
 
       const data = {
-        targets: sortedTargets,
+        targets: uniqueTargets,
         changepoints: persistedChangepoints,
       };
 
       saveToVscodeFolder(data);
     });
+}
+
+function setTargets(treeFiles, workspaceRoot, isRestore = false) {
+  let normalNodes = [];
+
+  if (isRestore) {
+    normalNodes = treeFiles.map(
+      (f) => new TreeProvider.FileNode(f.label, f.uri),
+    );
+  } else {
+    normalNodes = treeFiles.map((f) => {
+      if (typeof f === "string") {
+        const abs = path.join(workspaceRoot, f);
+        return new TreeProvider.FileNode(
+          path.basename(f),
+          vscode.Uri.file(abs),
+        );
+      }
+      return new TreeProvider.FileNode(f.label, f.uri);
+    });
+  }
+
+  const sortedNodes = [...treeFiles]
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, "en", { sensitivity: "base" }),
+    )
+    .map((f) => new TreeProvider.FileNode(f.label, f.uri));
+
+  const groups = [
+    new TreeProvider.GroupNode(
+      `Target Files (${normalNodes.length})`,
+      normalNodes,
+    ),
+    new TreeProvider.GroupNode(
+      `Target Files (Sorted) (${sortedNodes.length})`,
+      sortedNodes,
+    ),
+  ];
+
+  targetFilesProvider.setGroups(groups);
 }
 
 // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
@@ -298,7 +275,7 @@ function restoreState() {
     }
   });
 
-  targetFilesProvider.setFiles(files);
+  setTargets(files, workspaceRoot, true);
 }
 
 // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
