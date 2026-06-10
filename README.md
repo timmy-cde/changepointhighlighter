@@ -26,3 +26,6 @@ Initial release of the Changepoint Highlighter
 ### 3.0.0
 - sorted the target files in tree view
 - enable automatic highlight when file is re-opened.
+
+### 4.0.0
+- added multiple nodes in tree view (unsorted and sorted)
